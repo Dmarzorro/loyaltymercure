@@ -16,3 +16,6 @@ def fix_card_code(x: str) -> str:
         return str(int(float(x))).upper()
     except ValueError:
         return x.upper()
+
+def replace_comma_with_dot(x: str) -> str:
+    return x.replace(',', '.')
