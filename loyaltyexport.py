@@ -104,3 +104,28 @@ def porownaj_punkty_z_kartami():
         for card in sorted(missing_cards):
             names = ', '.join(ops_dict[card]['surnames'])
             output_missing_cards.append(f"  {names} (karta: {card})")
+
+    output_lines = []
+    output_lines.append("=== FULL MATCHES ===")
+    output_lines.extend(full_match)
+    output_lines.append("\n=== FALLBACK MATCHES (surname mismatch, но punkty się zgadzają) ===")
+    output_lines.extend(fallback_match)
+    output_lines.append("\n=== COUNT MISMATCH ===")
+    output_lines.extend(count_mismatch)
+    output_lines.append("\n=== POINTS MISMATCH ===")
+    output_lines.extend(points_mismatch)
+    output_lines.append("\n=== NO MATCH ===")
+    output_lines.extend(no_match)
+    if output_missing_cards:
+        output_lines.append("\n=== MISSING CARDS (Operations, ale brak w Loyalty) ===")
+        output_lines.extend(output_missing_cards)
+
+    output_filename = "comparison_result.txt"
+    with open(output_filename, "w", encoding="utf-8") as f:
+        for line in output_lines:
+            f.write(line + "\n")
+    print("\n".join(output_lines))
+    print(f"\n✅ Wynik zapisany w pliku {output_filename}")
+
+if __name__ == "__main__":
+    porownaj_punkty_z_kartami()
