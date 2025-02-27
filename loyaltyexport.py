@@ -19,3 +19,14 @@ def fix_card_code(x: str) -> str:
 
 def replace_comma_with_dot(x: str) -> str:
     return x.replace(',', '.')
+
+def porownaj_punkty_z_kartami():
+    full_match = []
+    fallback_match = []
+    count_mismatch = []
+    points_mismatch = []
+    no_match = []
+    output_missing_cards = []
+
+    loyalty_df = pd.read_excel('loyalty.xls', dtype=str, engine='xlrd')
+    operations_df = pd.read_csv('operations.csv', sep=';', dtype=str)
