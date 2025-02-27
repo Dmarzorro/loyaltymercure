@@ -65,3 +65,42 @@ def porownaj_punkty_z_kartami():
     ops_dict = { row['card_no_cleaned']: {'ops_rev': sorted(row['ops_rev']),
                                           'surnames': row['surname']}
                  for _, row in ops_group.iterrows() }
+
+    for card, ldata in loyalty_dict.items():
+        guest_names = ldata['guest_names']
+        loyalty_revs = ldata['loyalty_rev']
+        key = card
+        if key in ops_dict:
+            odata = ops_dict[key]
+            ops_revs = odata['ops_rev']
+            op_surnames = odata['surnames']
+            if len(loyalty_revs) != len(ops_revs):
+                count_mismatch.append(
+                    f"Dla {', '.join(guest_names)} (karta: {card}): liczba operacji nie zgadza się (Loyalty: {loyalty_revs}, Operations: {ops_revs})."
+                )
+            else:
+                pairs_match = [abs(l - o) < tolerance for l, o in zip(loyalty_revs, ops_revs)]
+                if all(pairs_match):
+                    if guest_names == op_surnames:
+                        full_match.append(
+                            f"Dla {', '.join(guest_names)} (karta: {card}): punkty się zgadzają ({loyalty_revs})."
+                        )
+                    else:
+                        fallback_match.append(
+                            f"Dla {', '.join(guest_names)} (karta: {card}): Nazwiska się nie zgadzają, ale punkty się zgadzają ({loyalty_revs})."
+                        )
+                else:
+                    points_mismatch.append(
+                        f"Dla {', '.join(guest_names)} (karta: {card}): Nazwiska się zgadzają, ale punkty się nie zgadzają (Loyalty: {loyalty_revs}, Operations: {ops_revs})."
+                    )
+        else:
+            no_match.append(
+                f"Dla {', '.join(guest_names)} (karta: {card}): brak dopasowania w Operations."
+            )
+
+    missing_cards = set(ops_dict.keys()) - set(loyalty_dict.keys())
+    if missing_cards:
+        output_missing_cards.append("Karty obecne w Operations, ale brak w Loyalty:")
+        for card in sorted(missing_cards):
+            names = ', '.join(ops_dict[card]['surnames'])
+            output_missing_cards.append(f"  {names} (karta: {card})")
