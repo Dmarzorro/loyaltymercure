@@ -42,3 +42,26 @@ def porownaj_punkty_z_kartami():
     operations_df['Revenue hotel currency'] = operations_df['Revenue hotel currency'].astype(str).apply(replace_comma_with_dot)
     operations_df['ops_rev'] = pd.to_numeric(operations_df['Revenue hotel currency'], errors='coerce')
     operations_df['card_no_cleaned'] = operations_df['Card no.'].str.replace(r'\s+', '', regex=True).str.upper()
+
+    if "Earn Media" in operations_df.columns:
+        operations_df["Earn Media"] = operations_df["Earn Media"].astype(str).str.strip().str.upper()
+        operations_df = operations_df[operations_df["Earn Media"] != "HOTEL LINK"]
+
+    tolerance = 0.01
+
+    loyalty_group = loyalty_df.groupby('card_code_cleaned').agg({
+        'loyalty_rev': list,
+        'Guest Name': lambda x: set(x)
+    }).reset_index()
+
+    ops_group = operations_df.groupby('card_no_cleaned').agg({
+        'ops_rev': list,
+        'surname': lambda x: set(x)
+    }).reset_index()
+
+    loyalty_dict = { row['card_code_cleaned']: {'loyalty_rev': sorted(row['loyalty_rev']),
+                                                  'guest_names': row['Guest Name']}
+                     for _, row in loyalty_group.iterrows() }
+    ops_dict = { row['card_no_cleaned']: {'ops_rev': sorted(row['ops_rev']),
+                                          'surnames': row['surname']}
+                 for _, row in ops_group.iterrows() }
