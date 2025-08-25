@@ -1,121 +1,168 @@
-# Loyalty vs Operations – porównanie i raport XLSX
+# Raport PMID — **Operations ↔ Loyalty**
 
-**Wersja uproszczona.**  
-Skrypt porównuje transakcje z plików **Loyalty** i **Operations** (kwoty netto, nazwiska, karty) i generuje raport w Excelu z czytelnymi arkuszami oraz kolorami statusów.
-
-## Co potrafi
-
-- **Nie jest wrażliwy na nazwy plików.**  
-  Sam znajduje najnowsze pliki w folderze programu:
-  - **Operations:** `*.csv`, `*.xls`, `*.xlsx` ze słowem `operation` lub `operations` w nazwie (np. `REPORT_OPERATION...csv`, `operations_2025.xlsx`).
-  - **Loyalty:** `*.xls`, `*.xlsx` ze słowem `loyalty` lub `loyaltyexport` w nazwie (np. `H3417_LoyaltyExport_...xls`).
-- Obsługuje **CSV** (auto-wykrycie separatora i wiersza nagłówka) oraz **Excel** (XLS/XLSX).
-- **Tolerancja** różnic kwot: **±0,10** (Δ ≤ 0,10 = zgodne; Δ > 0,10 = niezgodne).
-- Wykrywa:
-  - różne nazwiska przy tej samej karcie,
-  - różną liczbę pozycji,
-  - karty obecne tylko w jednym z plików.
-- Raport Excel z arkuszem przeglądowym, **posortowanym po ważności** (❌/⚠️ nad ✓) i z **kolorami** całych wierszy.
-- Nazwy arkuszy dostosowane do limitu Excela (≤ 31 znaków).
+> Porównywanie danych hotelowych **po PMID** i generowanie kolorowego raportu **XLSX**.  
+> Aplikacja ma **GUI** (PL, drag-and-drop) oraz **CLI** (tryb automatyczny).
 
 ---
 
-## Jak przygotować pliki
+## Spis treści
 
-1. Z systemu **Hotellink** pobierz plik **z jednego dnia** (wyjazdy tego dnia) – **CSV lub XLS/XLSX**.  
-2. Z systemu **FOLS** pobierz **Loyalty Export** z tym samym dniem wyjazdu – **XLS/XLSX**.  
-3. **Nie musisz zmieniać nazw plików.** Wystarczy, że w nazwie występuje odpowiednie **słowo**:
-   - Operations: `operation` lub `operations`
-   - Loyalty: `loyalty` lub `loyaltyexport`
-4. Umieść oba pliki w **tym samym folderze**, co program (`.exe` albo skrypt `.py`).
+- [Funkcje](#funkcje)
+- [Wymagania](#wymagania)
+- [Instalacja](#instalacja)
+- [Uruchomienie](#uruchomienie)
+  - [GUI](#gui)
+  - [CLI](#cli)
+- [Format wejścia](#format-wejścia)
+  - [Operations](#operations)
+  - [Loyalty](#loyalty)
+- [Raport XLSX](#raport-xlsx)
+- [Konfiguracja](#konfiguracja)
+- [Budowanie EXE (Windows)](#budowanie-exe-windows)
+- [Prywatność](#prywatność)
 
----
-
-## Jak uruchomić (gotowe .exe)
-
-1. Skopiuj pliki **Operations** i **Loyalty** do folderu z `LoyaltyComparator.exe`.
-2. Uruchom `LoyaltyComparator.exe` / `MajaExport.exe` (podwójny klik lub z wiersza poleceń).
-3. Program wypisze, jakie pliki znalazł, i zapisze raport jako **`01.xlsx … 31.xlsx`** (cyklicznie; nadpisuje najstarszy z nich).
-4. Otwórz wynikowy plik.
-
-> Jeśli antywirus ostrzeże (typowe dla samodzielnie zbudowanych `.exe`), uruchom z konsoli lub poproś IT o dodanie wyjątku dla lokalnego pliku.
 
 ---
 
-## Jak uruchomić (Python)
+## Funkcje
+
+- ✅ **PMID jako klucz**:
+  - *Operations:* czytane z kolumny `PMID`.
+  - *Loyalty:* wyprowadzane z `Loyalty Card Number` → **8 znaków przed ostatnim znakiem**  
+    (np. `30810324975248MC` → `4975248M`).
+- ✅ **Filtr danych**: z Operations brane są tylko rekordy z `Credit type = Hotel Stay`.
+- ✅ **Porównywane kwoty**:
+  - *Operations:* `Revenue Hotel currency`
+  - *Loyalty:* `Total Revenue (Net of VAT)`
+- ✅ **Tolerancja różnic**: domyślnie `|Δ| ≤ 0.10` (zmienialna w GUI).
+- ✅ **Wiele plików**: łączenie **kilku** plików Operations i/lub Loyalty w jeden zbiór przed porównaniem.
+- ✅ **Raport XLSX**: osobne arkusze, filtry, dopasowane szerokości kolumn, **kolorowanie** statusów, lista wyboru w kolumnie `Status_Manual`.
+- ✅ **GUI (PL)**: *ttkbootstrap*, **drag-and-drop**, pasek postępu, logi.
+- ✅ **CLI**: tryb automatyczny (sam znajduje najnowsze pliki w folderze programu i tworzy `01.xlsx…31.xlsx` cyklicznie).
+
+---
+
+## Wymagania
+
+- **Python 3.9+**
+- Pakiety (w `requirements.txt`):
+  - `pandas`, `openpyxl`, `xlrd`, `xlsxwriter`
+  - `ttkbootstrap`
+  - *(opcjonalnie dla drag-and-drop w GUI)* `tkinterdnd2`
+
+---
+
+## Instalacja
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+# Windows (PowerShell):
+. .venv\Scripts\Activate.ps1
+# macOS/Linux:
+# source .venv/bin/activate
+
 pip install --upgrade pip
-pip install pandas xlrd openpyxl xlsxwriter
-python loyaltyexport.py
+pip install -r requirements.txt
+# (opcjonalnie do DnD)
+pip install tkinterdnd2
+
 ```
 
-Co jest w raporcie (arkusze)
-00_PODSUMOWANIE – liczba wierszy w każdej sekcji + legenda.
+## Uruchomienie 
+### Gui
 
-01_ZGODNE_≤0,10 – karty, gdzie kwoty są zgodne (w granicy tolerancji) i nazwiska się pokrywają.
+```bash
+python app.py --gui
+```
 
-02_NIEZGODNE_>0,10 – karty, gdzie różnice kwot przekraczają tolerancję.
+Wskaż Operations (.xls/.xlsx) — jeden lub wiele plików (można przeciągnąć).
 
-03_KARTA_OK_INNE_NAZWISKA – kwoty zgodne, ale inne nazwiska (np. literówki, inne osoby).
+Wskaż Loyalty (.xls/.xlsx) — jeden lub wiele plików (można przeciągnąć).
 
-04_RÓŻNA LICZBA POZYCJI – różna liczba transakcji w Loyalty vs Operations.
+Ustaw Tolerancję Δ i ewentualnie ścieżkę Plik wyjściowy (.xlsx).
 
-05_BRAK KARTY W OPERATIONS – karta jest w Loyalty, brak w Operations.
+Kliknij **Generuj raport.**
 
-06_KARTY W OPERATIONS BRAK W LOYALTY – karta jest w Operations, brak w Loyalty.
+Podpowiedź: jeśli przeciąganie dodało cudzysłowy do ścieżki, program je usuwa; w razie wątpliwości wybierz plik przyciskiem **Wybierz…**.
 
-07_FREQ – statystyka częstotliwości nazwisk (np. nazwisko pojawia się 3×, punkty 2× – dozwolone; ostrzeżenia o możliwych duplikatach).
+### CLI
 
-99_PRZEGLĄD_TRANSAKCJI – pełna lista par porównanych kwot z opisem:
+Połóż najnowsze pliki Operations i Loyalty obok programu i uruchom:
 
-Status:
+```bash
+python app.py
+```
+Skrypt sam znajdzie pliki i zapisze raport cyklicznie jako 01.xlsx … 31.xlsx
+(nadpisuje najstarszy z istniejących).
 
-❌ RÓŻNICA KWOT / BRAK KARTY / RÓŻNA LICZBA TRANSAKCJI – czerwony wiersz, najwyższy priorytet.
+## Format wejścia
 
-⚠️ INNE NAZWISKA – żółty wiersz (tolerancja kwot spełniona, ale nazwiska różne).
+### Operations
 
-✓ ZGODNE – zielony wiersz.
+- **Excel** (`.xls`/`.xlsx`), nagłówki w **3. wierszu** → `header=2`.
+- **Wymagane kolumny:**
+  - `PMID`
+  - `Last name`
+  - `Revenue Hotel currency`
+  - `Credit type` *(tylko `Hotel Stay` jest brane do porównania)*
+- **Opcjonalne kolumny:**
+  - `Rewards Points` **lub** `Reward points`
+  - `Check-out date`
+  - `ALL card number`
 
-Uwaga: dodatkowy komentarz, np. „Różne nazwiska: Loyalty=… vs Operations=…”, lub informacja, że nazwisko z Loyalty w ogóle nie występuje w Operations.
+### Loyalty
 
-W arkuszach włączone są filtry i zamrożony wiersz nagłówków.
+- **Excel** (`.xls`/`.xlsx`), nagłówki od **13. wiersza** → `header=12`.
+- **Wymagane kolumny:**
+  - `Loyalty Card Number`
+  - `Guest Name`
+  - `Total Revenue (Net of VAT)`
+- **Opcjonalne:** `Departure`
 
-Zmiana tolerancji
-Domyślnie 0,10.
-Aby zmienić, edytuj wywołanie w funkcji głównej:
+
+## Raport XLSX
+
+**Tworzone arkusze:**
+
+- `00_PODSUMOWANIE` — zliczenia sekcji + legenda.
+- `01_ZGODNE_≤0.10` — kwoty zgodne i nazwiska zgodne.
+- `02_NIEZGODNE_>0.10` — różnice kwot większe niż tolerancja.
+- `03_INNE_NAZWISKA` — kwoty zgodne, nazwiska różne.
+- `04_ROZNA_LICZBA` — różna liczba transakcji na PMID między źródłami.
+- `05_BRAK_W_OPER` — rekordy tylko w Loyalty.
+- `06_TYLKO_OPER` — rekordy tylko w Operations.
+- `07_FREQ` — szybka analiza częstości nazwisk vs. punktów.
+- `99_PRZEGLAD` — pełna lista porównań; kolumny: `Status_Auto`, `Status_Manual`, `Status_Final`, komentarze, daty.
+
+**Kolory w `99_PRZEGLAD`:**
+
+- `ZGODNE` — zielony  
+- `INNE_NAZWISKA` — żółty  
+- `ROZNICA_KWOT`, `ROZNA_LICZBA_TRANSAKCJI`, `BRAK_W_OPERATIONS`, `BRAK_W_LOYALTY` — czerwony
 
 
+## Konfiguracja
+
+- **GUI:** zmień pole **„Tolerancja Δ”**.
+- **Kod/CLI:** argument `tolerancja` w wywołaniu:
+
+```python 
 wyniki = porownaj(lojal_df, ops_df, tolerancja=0.10)
-Typowe komunikaty / rozwiązywanie problemów
-„Brak wymaganych kolumn” – w źródłach muszą być co najmniej:
+```
 
-Loyalty: Loyalty Card Number, Guest Name, Total Revenue (Net of VAT) (nagłówek od 13. wiersza).
+## Budowanie EXE (Windows)
 
-Operations: Card no., Cardholder (stamped), Revenue hotel currency (+ opcjonalnie Rewards Points, Earn Media).
+> Buduj wewnątrz **aktywnego wirtualnego środowiska** z zainstalowanymi zależnościami.
 
-CSV z nietypowym separatorem lub liniami nad nagłówkiem – skrypt sam wykrywa separator i wiersz nagłówka; błędne linie są pomijane.
+**Z GUI (bez konsoli):**
+```bash
+pyinstaller --onefile --windowed --name loyaltymercure ^
+  --hidden-import openpyxl --hidden-import et_xmlfile ^
+  --collect-data ttkbootstrap --collect-data tkinterdnd2 ^
+  app.py
+```
+Plik pojawi się w dist/loyaltymercure.exe.
 
-Za długie nazwy arkuszy – skrypt automatycznie skraca zgodnie z limitem Excela.
-
-Brak wykrytych plików – sprawdź, czy w nazwie występuje odpowiednie słowo (operation(s), loyalty, loyaltyexport) i czy pliki leżą w folderze programu.
-
-Uwaga dot. prywatności
-Skrypt działa lokalnie: nie wysyła danych do Internetu.
-Raport zawiera nazwiska i numery kart – przechowuj pliki zgodnie z zasadami firmy.
-
-FAQ
-Czy muszę zmieniać nazwy plików wejściowych?
-Nie. Wystarczy, że w nazwie występuje odpowiednie słowo: operation/operations lub loyalty/loyaltyexport.
-
-Czy Operations musi być CSV?
-Nie. Działa CSV oraz Excel (XLS/XLSX).
-
-Co jeśli nazwiska się różnią, ale kwoty są zgodne?
-Zapis trafia do 03_KARTA_OK_INNE_NAZWISKA oraz do przeglądu (⚠️), z komentarzem, które nazwiska się różnią.
-
-Jak nazywa się plik wyjściowy?
-Cyklicznie: 01.xlsx … 31.xlsx. Gdy wszystkie istnieją, nadpisywany jest najstarszy z nich.
-
+## Prywatność
+- Aplikacja działa lokalnie — dane nie są wysyłane do Internetu. 
+- Raport zawiera nazwiska/PMID/kwoty — przechowuj zgodnie z polityką firmy.
