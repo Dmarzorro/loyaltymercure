@@ -1,4 +1,3 @@
-# core/io_loyalty.py
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
@@ -8,7 +7,7 @@ from typing import Iterable
 
 from .config import COLS_L
 from .utils import (
-    read_excel_safe,               # <— kluczowy bezpieczny odczyt
+    read_excel_safe,               
     normalizuj_numer_karty,
     wyciagnij_pmid_z_karty,
     wyodrebnij_nazwisko,
