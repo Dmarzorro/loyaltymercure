@@ -1,20 +1,56 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import re
+import re, tempfile, shutil
 from pathlib import Path
 from typing import List, Set, Tuple
 import pandas as pd
+
 
 from .config import COLS_L, COLS_O  # w razie potrzeby
 
 
 # ============ Ścieżki / Wyszukiwanie ============
 
+_INVALID_WIN_CHARS_RE = re.compile(r'[<>:"/\\|?*]')
+
+# niewidoczne znaki z DnD/clipboard (LRM/RLM i embeddingi)
+_INVIS_RE = re.compile(r'[\u202A-\u202E\u200E\u200F]')
+
 def base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent
     return Path(__file__).parent.parent
+
+def _clean_token(s: str) -> str:
+    # usuń cudzysłowy, nawiasy, niewidoczne
+    s = _INVIS_RE.sub('', s).strip().strip('"').strip()
+    if s.startswith("{") and s.endswith("}"):
+        s = s[1:-1]
+    # jeśli jest prefiks typu "User: C:\..." — przytnij od litery dysku
+    m = re.search(r"[A-Za-z]:\\", s)
+    if m:
+        s = s[m.start():]
+    return s
+
+def read_excel_safe(path: str, **kwargs):
+    """Czyta Excela, czyszcząc token i w razie potrzeby robiąc kopię z bezpieczną nazwą."""
+    raw = _clean_token(str(path))
+    p = Path(raw)
+    name = p.name
+    if _INVALID_WIN_CHARS_RE.search(name):
+        tmpdir = Path(tempfile.gettempdir()) / "loyaltymercure_tmp"
+        tmpdir.mkdir(parents=True, exist_ok=True)
+        safe = tmpdir / _INVALID_WIN_CHARS_RE.sub("_", name)
+        shutil.copy2(p, safe)
+        try:
+            return pd.read_excel(str(safe), **kwargs)
+        finally:
+            try: safe.unlink()
+            except Exception: pass
+    else:
+        return pd.read_excel(str(p), **kwargs)
+
 
 def _find_latest(folder: Path, exts: Tuple[str, ...], keywords: Tuple[str, ...]) -> Path:
     items = []
